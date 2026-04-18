@@ -1,0 +1,18 @@
+{
+  "id": "pdf-toolkit",
+  "name": "pdf-toolkit",
+  "displayName": "PDF Toolkit",
+  "description": "The complete PDF toolkit — generate, convert, merge, split, compress, lock, unlock, watermark, sign, OCR, parse, scan, and manage files. 30+ tools. Powered by PDFAPIHub.",
+  "version": "1.0.0",
+  "author": "PdfApiHub",
+  "homepage": "https://pdfapihub.com",
+  "extensions": ["./index.ts"],
+  "skills": ["./skills"],
+  "compat": { "pluginApi": ">=2026.3.24-beta.2", "minGatewayVersion": "2026.3.24-beta.2" },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "apiKey": { "type": "string", "description": "PDFAPIHub API key. Get a free key at https://pdfapihub.com" }
+    }
+  }
+}
