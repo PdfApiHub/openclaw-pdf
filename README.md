@@ -73,11 +73,28 @@ openclaw plugins install clawhub:pdf-toolkit
 
 ## Configuration
 
+**Important:** This plugin sends files to PDFAPIHub's servers for processing. Your API key authenticates requests. Files are stored for 30 days then auto-deleted.
+
 ```json
 {
   "plugins": {
     "entries": {
-      "pdf-toolkit": {
+      "pdfapihub": {
+        "enabled": true,
+        "apiKey": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+Or use the `env` approach:
+
+```json
+{
+  "plugins": {
+    "entries": {
+      "pdfapihub": {
         "enabled": true,
         "env": {
           "PDFAPIHUB_API_KEY": "your-api-key-here"

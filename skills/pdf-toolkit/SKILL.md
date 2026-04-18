@@ -72,11 +72,30 @@ The all-in-one PDF plugin for OpenClaw. 35 tools covering every PDF operation.
 
 Get your **free API key** at [https://pdfapihub.com](https://pdfapihub.com).
 
+**Important:** This plugin sends files to PDFAPIHub's servers for processing. Your API key grants access to the PDFAPIHub service. Files are stored for 30 days then auto-deleted.
+
+Configure your API key in `~/.openclaw/openclaw.json`:
+
 ```json
 {
   "plugins": {
     "entries": {
-      "pdf-toolkit": {
+      "pdfapihub": {
+        "enabled": true,
+        "apiKey": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+Or use the `env` approach (OpenClaw injects it into `config.apiKey` automatically):
+
+```json
+{
+  "plugins": {
+    "entries": {
+      "pdfapihub": {
         "enabled": true,
         "env": {
           "PDFAPIHUB_API_KEY": "your-api-key-here"
