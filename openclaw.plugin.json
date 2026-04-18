@@ -1,6 +1,6 @@
 {
-  "id": "pdf-toolkit",
-  "name": "pdf-toolkit",
+  "id": "pdfapihub",
+  "name": "pdfapihub",
   "displayName": "PDF Toolkit",
   "description": "The complete PDF toolkit — generate, convert, merge, split, compress, lock, unlock, watermark, sign, OCR, parse, scan, and manage files. 30+ tools. Powered by PDFAPIHub.",
   "version": "1.0.0",
