@@ -23,7 +23,14 @@ async function callApi(
   }
   const ct = res.headers.get("content-type") || "";
   let data: unknown;
-  if (ct.includes("application/json")) data = await res.json();
+  if (ct.includes("application/json")) {
+    data = await res.json();
+    // PDFAPIHub reports some failures (e.g. an invalid API key) as HTTP 200 with an error body.
+    const d = data as { error?: unknown; success?: unknown } | null;
+    if (d && typeof d === "object" && d.error && d.success !== true) {
+      throw new Error(`PDFAPIHub error (${res.status}): ${typeof d.error === "string" ? d.error : JSON.stringify(d.error)}`);
+    }
+  }
   else if (ct.includes("text/plain")) data = { success: true, text: await res.text() };
   else data = { success: true, message: "Binary file returned", content_type: ct };
   return { content: [{ type: "text", text: JSON.stringify(data) }], details: data };
