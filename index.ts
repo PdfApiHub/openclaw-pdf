@@ -22,14 +22,23 @@ async function callApi(
     throw new Error(`PDFAPIHub error (${res.status}): ${p.error || text}`);
   }
   const ct = res.headers.get("content-type") || "";
-  if (ct.includes("application/json")) return res.json();
-  if (ct.includes("text/plain")) return { success: true, text: await res.text() };
-  return { success: true, message: "Binary file returned", content_type: ct };
+  let data: unknown;
+  if (ct.includes("application/json")) {
+    data = await res.json();
+    // PDFAPIHub reports some failures (e.g. an invalid API key) as HTTP 200 with an error body.
+    const d = data as { error?: unknown; success?: unknown } | null;
+    if (d && typeof d === "object" && d.error && d.success !== true) {
+      throw new Error(`PDFAPIHub error (${res.status}): ${typeof d.error === "string" ? d.error : JSON.stringify(d.error)}`);
+    }
+  }
+  else if (ct.includes("text/plain")) data = { success: true, text: await res.text() };
+  else data = { success: true, message: "Binary file returned", content_type: ct };
+  return { content: [{ type: "text", text: JSON.stringify(data) }], details: data };
 }
 
 function getApiKey(config: Record<string, unknown>): string {
   const k = (config.apiKey as string) || "";
-  if (!k) throw new Error("PDFAPIHub API key not configured. Set it under plugins.entries.pdfapihub in your openclaw.json: either as apiKey (string) or via env.PDFAPIHUB_API_KEY. Get a free key at https://pdfapihub.com");
+  if (!k) throw new Error("PDFAPIHub API key not configured. Set it under plugins.entries.pdfapihub in your openclaw.json: as config.apiKey. Get a free key at https://pdfapihub.com");
   return k;
 }
 
@@ -40,9 +49,10 @@ function bb(params: Record<string, unknown>): Record<string, unknown> {
 }
 
 const plugin: PluginEntry = {
-  id: "pdf-toolkit",
+  id: "pdfapihub",
   name: "PDF Toolkit",
   register(api) {
+    const cfg = (api.pluginConfig ?? {}) as Record<string, unknown>;
 
     // ═══════════════════════════════════════════
     // GENERATE
@@ -67,7 +77,7 @@ const plugin: PluginEntry = {
         wait_till: { type: "number", description: "Seconds to wait." },
         output_filename: { type: "string" },
       }},
-      async execute(p, ctx) { return callApi("/v1/generatePdf", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/generatePdf", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -83,7 +93,7 @@ const plugin: PluginEntry = {
         wait_for_timeout: { type: "number" }, cookie_accept_text: { type: "string" },
         font: { type: "string" }, dynamic_params: { type: "object", additionalProperties: { type: "string" } },
       }},
-      async execute(p, ctx) { return callApi("/v1/generateImage", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/generateImage", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -96,7 +106,7 @@ const plugin: PluginEntry = {
         width: { type: "number" }, height: { type: "number" },
         output_format: { type: "string", enum: ["url", "base64", "both", "image"] },
       }, required: ["chart_type", "data"] },
-      async execute(p, ctx) { return callApi("/v1/generateChart", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/generateChart", "POST", bb(p), getApiKey(cfg)); },
     });
 
     // ═══════════════════════════════════════════
@@ -115,7 +125,7 @@ const plugin: PluginEntry = {
         background_color: { type: "string" },
         output: { type: "string", enum: ["url", "base64", "both", "file"] },
       }},
-      async execute(p, ctx) { return callApi("/v1/convert/pdf/image", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/convert/pdf/image", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -125,7 +135,7 @@ const plugin: PluginEntry = {
         url: { type: "string" }, file: { type: "string" }, pages: { type: "string" },
         output: { type: "string", enum: ["url", "base64", "file"] }, output_filename: { type: "string" },
       }},
-      async execute(p, ctx) { return callApi("/v1/convert/pdf/docx", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/convert/pdf/docx", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -135,7 +145,7 @@ const plugin: PluginEntry = {
         url: { type: "string" }, file: { type: "string" }, pages: { type: "string" },
         output: { type: "string", enum: ["url", "base64", "file"] }, output_filename: { type: "string" },
       }},
-      async execute(p, ctx) { return callApi("/v1/convert/pdf/xlsx", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/convert/pdf/xlsx", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -145,7 +155,7 @@ const plugin: PluginEntry = {
         url: { type: "string" }, file: { type: "string" }, pages: { type: "string" },
         output: { type: "string", enum: ["url", "base64", "file"] }, output_filename: { type: "string" },
       }},
-      async execute(p, ctx) { return callApi("/v1/convert/pdf/csv", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/convert/pdf/csv", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -155,7 +165,7 @@ const plugin: PluginEntry = {
         url: { type: "string" }, file: { type: "string" }, pages: { type: "string" },
         output: { type: "string", enum: ["url", "base64", "file"] },
       }},
-      async execute(p, ctx) { return callApi("/v1/convert/pdf/txt", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/convert/pdf/txt", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -165,7 +175,7 @@ const plugin: PluginEntry = {
         url: { type: "string" }, file: { type: "string" }, pages: { type: "string" },
         output: { type: "string", enum: ["url", "base64", "file"] },
       }},
-      async execute(p, ctx) { return callApi("/v1/convert/pdf/html", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/convert/pdf/html", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -175,7 +185,7 @@ const plugin: PluginEntry = {
         url: { type: "string" }, file: { type: "string" }, pages: { type: "string" },
         output: { type: "string", enum: ["url", "base64", "file"] }, output_filename: { type: "string" },
       }},
-      async execute(p, ctx) { return callApi("/v1/convert/pdf/pptx", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/convert/pdf/pptx", "POST", bb(p), getApiKey(cfg)); },
     });
 
     // ═══════════════════════════════════════════
@@ -194,7 +204,7 @@ const plugin: PluginEntry = {
         margin: { type: "number" },
         output: { type: "string", enum: ["url", "base64", "both", "file"] }, output_filename: { type: "string" },
       }},
-      async execute(p, ctx) { return callApi("/v1/convert/image/pdf", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/convert/image/pdf", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -205,7 +215,7 @@ const plugin: PluginEntry = {
         input_format: { type: "string", enum: ["doc", "docx", "odt", "rtf", "txt", "ppt", "pptx", "odp", "xls", "xlsx", "ods", "csv"] },
         output: { type: "string", enum: ["url", "base64", "file"] }, output_filename: { type: "string" },
       }},
-      async execute(p, ctx) { return callApi("/v1/convert/docx/pdf", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/convert/docx/pdf", "POST", bb(p), getApiKey(cfg)); },
     });
 
     // ═══════════════════════════════════════════
@@ -221,7 +231,7 @@ const plugin: PluginEntry = {
         output: { type: "string", enum: ["url", "file", "base64"] }, output_filename: { type: "string" },
         metadata: { type: "object", properties: { title: { type: "string" }, author: { type: "string" }, subject: { type: "string" } } },
       }},
-      async execute(p, ctx) { return callApi("/v1/pdf/merge", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/pdf/merge", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -232,7 +242,7 @@ const plugin: PluginEntry = {
         pages: { type: "string" }, mode: { type: "string", enum: ["each"] }, chunks: { type: "number" },
         output: { type: "string", enum: ["url", "file", "base64"] },
       }},
-      async execute(p, ctx) { return callApi("/v1/pdf/split", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/pdf/split", "POST", bb(p), getApiKey(cfg)); },
     });
 
     // ═══════════════════════════════════════════
@@ -254,7 +264,7 @@ const plugin: PluginEntry = {
         input_password: { type: "string" },
         output: { type: "string", enum: ["file", "url", "base64"] },
       }, required: ["password"] },
-      async execute(p, ctx) { return callApi("/v1/lockPdf", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/lockPdf", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -265,7 +275,7 @@ const plugin: PluginEntry = {
         password: { type: "string", description: "Password to unlock." },
         output: { type: "string", enum: ["file", "url", "base64"] }, output_name: { type: "string" },
       }, required: ["password"] },
-      async execute(p, ctx) { return callApi("/v1/unlockPdf", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/unlockPdf", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -276,7 +286,7 @@ const plugin: PluginEntry = {
         compression: { type: "string", enum: ["low", "medium", "high", "max"] },
         output: { type: "string", enum: ["file", "url", "base64"] }, output_name: { type: "string" },
       }},
-      async execute(p, ctx) { return callApi("/v1/compressPdf", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/compressPdf", "POST", bb(p), getApiKey(cfg)); },
     });
 
     // ═══════════════════════════════════════════
@@ -295,7 +305,7 @@ const plugin: PluginEntry = {
         watermark_image_url: { type: "string" },
         output_format: { type: "string", enum: ["file", "url", "base64", "both"] },
       }},
-      async execute(p, ctx) { return callApi("/v1/watermark", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/watermark", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -312,7 +322,7 @@ const plugin: PluginEntry = {
         opacity: { type: "number" },
         output_format: { type: "string", enum: ["file", "url", "base64", "both"] },
       }},
-      async execute(p, ctx) { return callApi("/v1/sign-pdf", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/sign-pdf", "POST", bb(p), getApiKey(cfg)); },
     });
 
     // ═══════════════════════════════════════════
@@ -327,7 +337,7 @@ const plugin: PluginEntry = {
         mode: { type: "string", enum: ["text", "layout", "tables", "full"] },
         pages: { type: "string" },
       }},
-      async execute(p, ctx) { return callApi("/v1/pdf/parse", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/pdf/parse", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -340,7 +350,7 @@ const plugin: PluginEntry = {
         char_whitelist: { type: "string" },
         output_format: { type: "string", enum: ["json", "text"] },
       }},
-      async execute(p, ctx) { return callApi("/v1/pdf/ocr/parse", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/pdf/ocr/parse", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -354,7 +364,7 @@ const plugin: PluginEntry = {
         threshold: { type: "number" }, resize: { type: "number" },
         output_format: { type: "string", enum: ["json", "text"] },
       }},
-      async execute(p, ctx) { return callApi("/v1/image/ocr/parse", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/image/ocr/parse", "POST", bb(p), getApiKey(cfg)); },
     });
 
     // ═══════════════════════════════════════════
@@ -372,7 +382,7 @@ const plugin: PluginEntry = {
         image_format: { type: "string", enum: ["png", "jpg"] },
         output_format: { type: "string", enum: ["file", "url", "base64", "both", "pdf"] },
       }},
-      async execute(p, ctx) { return callApi("/v1/scan-enhance", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/scan-enhance", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -383,7 +393,7 @@ const plugin: PluginEntry = {
         image1_base64: { type: "string" }, image2_base64: { type: "string" },
         method: { type: "string", enum: ["auto", "feature_match", "ssim", "phash"] },
       }},
-      async execute(p, ctx) { return callApi("/v1/document/similarity", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/document/similarity", "POST", bb(p), getApiKey(cfg)); },
     });
 
     // ═══════════════════════════════════════════
@@ -396,7 +406,7 @@ const plugin: PluginEntry = {
       parameters: { type: "object", properties: {
         url: { type: "string" }, base64_pdf: { type: "string" },
       }},
-      async execute(p, ctx) { return callApi("/v1/pdf/info", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/pdf/info", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -406,7 +416,7 @@ const plugin: PluginEntry = {
         image_url: { type: "string" }, base64_image: { type: "string" },
         quality: { type: "number" }, output_format: { type: "string", enum: ["url", "base64"] },
       }},
-      async execute(p, ctx) { return callApi("/v1/compress", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/compress", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -418,7 +428,7 @@ const plugin: PluginEntry = {
         timeout: { type: "number" }, wait_for_selector: { type: "string" }, wait_for_timeout: { type: "number" },
         viewport_width: { type: "number" }, viewport_height: { type: "number" }, user_agent: { type: "string" },
       }, required: ["url"] },
-      async execute(p, ctx) { return callApi("/v1/url-to-html", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/url-to-html", "POST", bb(p), getApiKey(cfg)); },
     });
 
     // ═══════════════════════════════════════════
@@ -431,7 +441,7 @@ const plugin: PluginEntry = {
       parameters: { type: "object", properties: {
         file_url: { type: "string" }, filename: { type: "string" },
       }},
-      async execute(p, ctx) { return callApi("/v1/file/upload", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/file/upload", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -440,9 +450,9 @@ const plugin: PluginEntry = {
       parameters: { type: "object", properties: {
         limit: { type: "number", description: "Max results (1-500). Default: 100." },
       }},
-      async execute(p, ctx) {
+      async execute(_id, p) {
         const limit = (p.limit as number) || 100;
-        return callApi(`/v1/file/list?limit=${limit}`, "GET", null, getApiKey(ctx.config));
+        return callApi(`/v1/file/list?limit=${limit}`, "GET", null, getApiKey(cfg));
       },
     });
 
@@ -452,7 +462,7 @@ const plugin: PluginEntry = {
       parameters: { type: "object", properties: {
         url: { type: "string", description: "File URL to delete." },
       }, required: ["url"] },
-      async execute(p, ctx) { return callApi("/v1/file/delete", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/file/delete", "POST", bb(p), getApiKey(cfg)); },
     });
 
     // ═══════════════════════════════════════════
@@ -467,21 +477,21 @@ const plugin: PluginEntry = {
         default_params: { type: "object", additionalProperties: { type: "string" } },
         metadata: { type: "object", additionalProperties: true },
       }, required: ["html_content"] },
-      async execute(p, ctx) { return callApi("/v1/templates", "POST", bb(p), getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi("/v1/templates", "POST", bb(p), getApiKey(cfg)); },
     });
 
     api.registerTool({
       name: "list_templates",
       description: "List all saved templates.",
       parameters: { type: "object", properties: {} },
-      async execute(_p, ctx) { return callApi("/v1/templates", "GET", null, getApiKey(ctx.config)); },
+      async execute(_id, _p) { return callApi("/v1/templates", "GET", null, getApiKey(cfg)); },
     });
 
     api.registerTool({
       name: "get_template",
       description: "Get full template details by ID.",
       parameters: { type: "object", properties: { template_id: { type: "string" } }, required: ["template_id"] },
-      async execute(p, ctx) { return callApi(`/v1/templates/${p.template_id}`, "GET", null, getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi(`/v1/templates/${p.template_id}`, "GET", null, getApiKey(cfg)); },
     });
 
     api.registerTool({
@@ -491,9 +501,9 @@ const plugin: PluginEntry = {
         template_id: { type: "string" }, name: { type: "string" }, html_content: { type: "string" },
         css_content: { type: "string" }, default_params: { type: "object" }, metadata: { type: "object" },
       }, required: ["template_id"] },
-      async execute(p, ctx) {
+      async execute(_id, p) {
         const { template_id, ...body } = p;
-        return callApi(`/v1/templates/${template_id}`, "PUT", bb(body as Record<string, unknown>), getApiKey(ctx.config));
+        return callApi(`/v1/templates/${template_id}`, "PUT", bb(body as Record<string, unknown>), getApiKey(cfg));
       },
     });
 
@@ -501,7 +511,7 @@ const plugin: PluginEntry = {
       name: "delete_template",
       description: "Permanently delete a template.",
       parameters: { type: "object", properties: { template_id: { type: "string" } }, required: ["template_id"] },
-      async execute(p, ctx) { return callApi(`/v1/templates/${p.template_id}`, "DELETE", null, getApiKey(ctx.config)); },
+      async execute(_id, p) { return callApi(`/v1/templates/${p.template_id}`, "DELETE", null, getApiKey(cfg)); },
     });
   },
 };

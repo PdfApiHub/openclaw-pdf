@@ -81,28 +81,19 @@ openclaw plugins install clawhub:pdf-toolkit
     "entries": {
       "pdfapihub": {
         "enabled": true,
-        "apiKey": "your-api-key-here"
+        "config": {
+          "apiKey": "your-api-key-here"
+        }
       }
     }
   }
 }
 ```
 
-Or use the `env` approach:
+Or from the CLI:
 
-```json
-{
-  "plugins": {
-    "entries": {
-      "pdfapihub": {
-        "enabled": true,
-        "env": {
-          "PDFAPIHUB_API_KEY": "your-api-key-here"
-        }
-      }
-    }
-  }
-}
+```bash
+openclaw config set plugins.entries.pdfapihub.config.apiKey "your-api-key-here"
 ```
 
 Get your **free API key** at [https://pdfapihub.com](https://pdfapihub.com).
