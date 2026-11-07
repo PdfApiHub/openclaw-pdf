@@ -29,7 +29,7 @@ async function callApi(
 
 function getApiKey(config: Record<string, unknown>): string {
   const k = (config.apiKey as string) || "";
-  if (!k) throw new Error("PDFAPIHub API key not configured. Set it under plugins.entries.pdfapihub in your openclaw.json: either as apiKey (string) or via env.PDFAPIHUB_API_KEY. Get a free key at https://pdfapihub.com");
+  if (!k) throw new Error("PDFAPIHub API key not configured. Set it under plugins.entries.pdfapihub in your openclaw.json: as config.apiKey. Get a free key at https://pdfapihub.com");
   return k;
 }
 
@@ -40,7 +40,7 @@ function bb(params: Record<string, unknown>): Record<string, unknown> {
 }
 
 const plugin: PluginEntry = {
-  id: "pdf-toolkit",
+  id: "pdfapihub",
   name: "PDF Toolkit",
   register(api) {
 
